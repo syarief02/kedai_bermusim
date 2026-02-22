@@ -6,6 +6,7 @@ const DEMO_USER = {
     id: 'demo-user-001',
     email: 'demo@kedaibermusim.my',
     user_metadata: { display_name: 'Ibu Demo' },
+    is_admin: true // Make demo user an admin by default so owner can see demo admin page
 }
 
 export function useAuth() {
@@ -21,15 +22,35 @@ export function useAuth() {
             return
         }
 
+        const fetchProfile = async (sessionUser) => {
+            if (!sessionUser) {
+                setUser(null)
+                setLoading(false)
+                return
+            }
+            // Fetch profile to get is_admin flag
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('is_admin, display_name')
+                .eq('id', sessionUser.id)
+                .single()
+
+            setUser({
+                ...sessionUser,
+                is_admin: data?.is_admin || false,
+                display_name: data?.display_name || sessionUser.user_metadata?.display_name
+            })
+            setLoading(false)
+        }
+
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null)
-            setLoading(false)
+            fetchProfile(session?.user)
         })
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null)
+            fetchProfile(session?.user)
         })
 
         return () => subscription.unsubscribe()

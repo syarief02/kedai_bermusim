@@ -11,11 +11,12 @@ import ChecklistPage from './pages/ChecklistPage'
 import RemindersPage from './pages/RemindersPage'
 import CatalogPage from './pages/CatalogPage'
 import ProfilePage from './pages/ProfilePage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   const { user, loading: authLoading, error: authError, signIn, signUp, signOut, isDemoMode } = useAuth()
-  const { children, loading: childrenLoading, addChild, removeChild } = useChildren()
-  const { checkedItems, loading: checklistLoading, toggleItem, getProgress, isItemChecked } = useChecklist()
+  const { children, loading: childrenLoading, addChild, removeChild } = useChildren(user)
+  const { checkedItems, loading: checklistLoading, toggleItem, getProgress, isItemChecked } = useChecklist(user)
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [selectedChild, setSelectedChild] = useState(null)
 
@@ -91,8 +92,11 @@ export default function App() {
             onSignOut={signOut}
             getProgress={getProgress}
             isDemoMode={isDemoMode}
+            onNavigate={setCurrentPage}
           />
         )
+      case 'admin':
+        return <AdminPage user={user} />
       default:
         return null
     }

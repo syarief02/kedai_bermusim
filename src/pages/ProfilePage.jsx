@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { User, LogOut, Plus, Shield, Smartphone, Heart } from 'lucide-react'
+import { User, LogOut, Plus, Shield, Smartphone, Heart, ShieldAlert } from 'lucide-react'
 import { getChecklistForDarjah } from '../utils/checklistData'
 import ChildCard from '../components/ChildCard'
 import AddChildForm from '../components/AddChildForm'
@@ -13,6 +13,7 @@ export default function ProfilePage({
   onSignOut,
   getProgress,
   isDemoMode,
+  onNavigate
 }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
@@ -67,6 +68,24 @@ export default function ProfilePage({
           </div>
         </div>
       </div>
+
+      {/* Admin Dashboard Button */}
+      {user?.is_admin && (
+        <div className="mb-6">
+          <button
+            onClick={() => onNavigate('admin')}
+            className="w-full kb-btn flex items-center justify-center gap-2 font-['Impact'] tracking-wide"
+            style={{ 
+              background: 'var(--color-kb-yellow)', 
+              color: 'var(--color-kb-black)',
+              border: '2px solid var(--color-kb-black)'
+            }}
+          >
+            <ShieldAlert className="w-5 h-5" />
+            DASHBOARD PENTADBIR
+          </button>
+        </div>
+      )}
 
       {/* Children Section */}
       <div className="mb-6">

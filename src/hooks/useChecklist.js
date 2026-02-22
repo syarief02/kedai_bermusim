@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { supabase, isDemoMode } from '../lib/supabase'
 
 const STORAGE_KEY = 'kedai_bermusim_checklist'
 
@@ -19,29 +20,83 @@ function saveChecklist(checklist) {
  * Manages checked state of checklist items per child
  * Structure: { [childId]: { [itemId]: boolean } }
  */
-export function useChecklist() {
+export function useChecklist(user) {
     const [checkedItems, setCheckedItems] = useState({})
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        setCheckedItems(loadChecklist())
-        setLoading(false)
-    }, [])
+        if (isDemoMode) {
+            setCheckedItems(loadChecklist())
+            setLoading(false)
+            return
+        }
 
-    const toggleItem = useCallback((childId, itemId) => {
+        if (!user) {
+            setCheckedItems({})
+            setLoading(false)
+            return
+        }
+
+        const fetchChecklist = async () => {
+            const { data, error } = await supabase
+                .from('checklist_items')
+                .select('*')
+                .eq('user_id', user.id)
+
+            if (!error && data) {
+                // Transform into { childId: { itemId: isChecked } } format
+                const formatted = {}
+                data.forEach(row => {
+                    if (!formatted[row.child_id]) {
+                        formatted[row.child_id] = {}
+                    }
+                    formatted[row.child_id][row.item_id] = row.is_checked
+                })
+                setCheckedItems(formatted)
+            }
+            setLoading(false)
+        }
+
+        fetchChecklist()
+    }, [user])
+
+    const toggleItem = useCallback(async (childId, itemId) => {
         setCheckedItems(prev => {
             const childChecks = prev[childId] || {}
+            const isCurrentlyChecked = childChecks[itemId] || false
             const updated = {
                 ...prev,
                 [childId]: {
                     ...childChecks,
-                    [itemId]: !childChecks[itemId],
+                    [itemId]: !isCurrentlyChecked,
                 },
             }
-            saveChecklist(updated)
+
+            if (isDemoMode) {
+                saveChecklist(updated)
+            }
+
             return updated
         })
-    }, [])
+
+        if (!isDemoMode && user) {
+            // Get current state to negate
+            const childChecks = checkedItems[childId] || {}
+            const isCurrentlyChecked = childChecks[itemId] || false
+
+            // Upsert the checked state
+            const { error: upsertError } = await supabase
+                .from('checklist_items')
+                .upsert(
+                    { user_id: user.id, child_id: childId, item_id: itemId, is_checked: !isCurrentlyChecked },
+                    { onConflict: 'child_id,item_id' }
+                )
+
+            if (upsertError) {
+                console.error("Failed to sync checklist item:", upsertError)
+            }
+        }
+    }, [user, checkedItems])
 
     const getProgress = useCallback((childId, totalItems) => {
         const childChecks = checkedItems[childId] || {}
